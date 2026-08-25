@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f4ef">
+  <title>語り場ニュース｜記事閲覧ダッシュボード</title>
+  <style>
+    :root {
+      --bg:#f7f4ef;
+      --panel:#ffffff;
+      --text:#2b2926;
+      --muted:#7c766e;
+      --line:#e6dfd6;
+      --accent:#4f7655;
+      --accent-soft:#edf4ee;
+      --danger:#b85146;
+      --shadow:0 14px 40px rgba(60,48,35,.08);
+      --radius:22px;
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; min-height:100%; }
+    body {
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(235,229,219,.8), transparent 32rem),
+        var(--bg);
+      color:var(--text);
+    }
+    button, input { font:inherit; }
+    button { cursor:pointer; }
+    .app { width:min(1180px, calc(100% - 28px)); margin:0 auto; padding:34px 0 50px; }
+    .hero {
+      background:linear-gradient(135deg,#2f4434,#58745d);
+      color:#fff;
+      border-radius:28px;
+      padding:32px;
+      box-shadow:var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+    .hero::after {
+      content:"";
+      position:absolute;
+      width:260px; height:260px; border-radius:50%;
+      right:-70px; top:-100px;
+      background:rgba(255,255,255,.08);
+    }
+    .hero__top {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:18px; position:relative; z-index:1;
+    }
+    .eyebrow {
+      display:inline-flex; align-items:center; gap:8px;
+      font-size:13px; font-weight:800; letter-spacing:.08em;
+      color:rgba(255,255,255,.82);
+      margin-bottom:8px;
+    }
+    .live-dot {
+      width:9px; height:9px; border-radius:50%;
+      background:#a9e2a7; box-shadow:0 0 0 5px rgba(169,226,167,.15);
+    }
+    h1 { margin:0; font-size:clamp(28px,4vw,46px); line-height:1.15; }
+    .hero p { margin:10px 0 0; color:rgba(255,255,255,.8); line-height:1.8; font-size:14px; }
+    .hero__actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .btn {
+      border:0; border-radius:999px; padding:11px 17px;
+      font-weight:800; transition:.18s ease;
+    }
+    .btn:hover { transform:translateY(-1px); }
+    .btn--light { background:#fff; color:#334a38; }
+    .btn--ghost { background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.25); }
+    .btn--main { background:var(--accent); color:#fff; }
+    .btn--outline { background:#fff; color:var(--text); border:1px solid var(--line); }
+    .stats {
+      display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px;
+      margin:18px 0;
+    }
+    .stat {
+      background:var(--panel); border:1px solid var(--line); border-radius:18px;
+      padding:18px 20px; box-shadow:var(--shadow);
+    }
+    .stat__label { color:var(--muted); font-size:12px; font-weight:800; }
+    .stat__value { margin-top:5px; font-size:28px; font-weight:900; letter-spacing:-.02em; }
+    .panel {
+      background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+      box-shadow:var(--shadow); overflow:hidden;
+    }
+    .toolbar {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:14px; padding:18px 20px; border-bottom:1px solid var(--line);
+      flex-wrap:wrap;
+    }
+    .toolbar__left { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .status {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 12px; border-radius:999px;
+      background:var(--accent-soft); color:#3e6546;
+      font-size:12px; font-weight:900;
+    }
+    .status::before { content:""; width:8px; height:8px; border-radius:50%; background:#5f9869; }
+    .updated { color:var(--muted); font-size:12px; }
+    .table-wrap { overflow:auto; max-height:calc(100vh - 360px); min-height:380px; }
+    table { width:100%; border-collapse:separate; border-spacing:0; min-width:760px; }
+    th {
+      position:sticky; top:0; z-index:2; background:#faf8f5;
+      text-align:left; border-bottom:1px solid var(--line);
+      padding:0;
+    }
+    th button {
+      width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px;
+      border:0; background:transparent; color:var(--text); padding:15px 18px;
+      font-weight:900; text-align:left;
+    }
+    th button:hover { background:#f2eee8; }
+    .th-label { display:flex; flex-direction:column; gap:2px; }
+    .th-label small { font-size:10px; color:var(--muted); font-weight:700; }
+    .sort { color:#9b948b; font-size:13px; min-width:18px; text-align:center; }
+    th.is-active .sort { color:var(--accent); }
+    td {
+      padding:15px 18px; border-bottom:1px solid #eee9e2;
+      vertical-align:middle; background:#fff;
+    }
+    tbody tr:hover td { background:#fbfaf8; }
+    td.num { font-variant-numeric:tabular-nums; font-size:20px; font-weight:900; text-align:right; }
+    th.num button { text-align:right; }
+    th.num .th-label { margin-left:auto; align-items:flex-end; }
+    .date { white-space:nowrap; font-variant-numeric:tabular-nums; color:#5f5a54; font-weight:700; }
+    .title { font-weight:800; line-height:1.5; min-width:270px; }
+    .empty { text-align:center; color:var(--muted); padding:55px 20px !important; }
+    .login-overlay {
+      position:fixed; inset:0; z-index:30;
+      display:flex; align-items:center; justify-content:center;
+      padding:20px; background:rgba(31,29,26,.48); backdrop-filter:blur(7px);
+    }
+    .login-overlay[hidden] { display:none; }
+    .login-card {
+      width:min(430px,100%); background:#fff; border-radius:26px;
+      padding:28px; box-shadow:0 30px 80px rgba(0,0,0,.18);
+    }
+    .login-card h2 { margin:0 0 6px; font-size:25px; }
+    .login-card p { margin:0 0 22px; color:var(--muted); line-height:1.7; font-size:13px; }
+    .field { display:grid; gap:7px; margin-bottom:14px; }
+    .field label { font-size:12px; font-weight:900; color:#5d5750; }
+    .field input {
+      width:100%; padding:13px 14px; border-radius:13px; border:1px solid var(--line);
+      outline:none; background:#fff;
+    }
+    .field input:focus { border-color:#91ae97; box-shadow:0 0 0 4px #edf4ee; }
+    .login-actions { display:flex; gap:10px; margin-top:18px; }
+    .login-actions .btn { flex:1; }
+    .login-msg { min-height:20px; margin-top:12px; color:var(--danger); font-size:12px; font-weight:700; }
+    .note {
+      margin-top:14px; font-size:12px; color:var(--muted); line-height:1.75;
+    }
+    @media (max-width:760px) {
+      .app { width:min(100% - 18px,1180px); padding-top:18px; }
+      .hero { padding:24px 20px; border-radius:22px; }
+      .hero__top { align-items:flex-start; flex-direction:column; }
+      .stats { grid-template-columns:1fr; }
+      .table-wrap { max-height:none; }
+      .toolbar { align-items:flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <div class="hero__top">
+        <div>
+          <div class="eyebrow"><span class="live-dot"></span> KATARIBA NEWS / LIVE VIEW</div>
+          <h1>記事閲覧ダッシュボード</h1>
+          <p>postsタブの B・F・Q・R 列を、運営用に見やすくリアルタイム表示します。<br>各列名を押すと昇順／降順を切り替えられます。</p>
+        </div>
+        <div class="hero__actions">
+          <button class="btn btn--light" id="refreshBtn">今すぐ更新</button>
+          <button class="btn btn--ghost" id="logoutBtn">ログアウト</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats">
+      <article class="stat">
+        <div class="stat__label">表示記事数</div>
+        <div class="stat__value" id="articleCount">—</div>
+      </article>
+      <article class="stat">
+        <div class="stat__label">総視聴数（Q列合計）</div>
+        <div class="stat__value" id="totalViewsSum">—</div>
+      </article>
+      <article class="stat">
+        <div class="stat__label">現在の並び順</div>
+        <div class="stat__value" id="sortLabel" style="font-size:19px;">総視聴数 ▼</div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <span class="status">10秒ごとに自動更新</span>
+          <span class="updated" id="updatedAt">最終更新：—</span>
+        </div>
+        <div class="updated">列名をクリックして並び替え</div>
+      </div>
+
+      <div class="table-wrap">
+        <table aria-label="記事閲覧状況">
+          <thead>
+            <tr>
+              <th data-key="date">
+                <button type="button">
+                  <span class="th-label">投稿日<small>posts B列</small></span>
+                  <span class="sort">↕</span>
+                </button>
+              </th>
+              <th data-key="title">
+                <button type="button">
+                  <span class="th-label">記事タイトル<small>posts F列</small></span>
+                  <span class="sort">↕</span>
+                </button>
+              </th>
+              <th data-key="totalViews" class="num is-active">
+                <button type="button">
+                  <span class="th-label">総視聴数<small>posts Q列</small></span>
+                  <span class="sort">▼</span>
+                </button>
+              </th>
+              <th data-key="uniqueViewCount" class="num">
+                <button type="button">
+                  <span class="th-label">視聴人数<small>posts R列</small></span>
+                  <span class="sort">↕</span>
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="statsBody">
+            <tr><td colspan="4" class="empty">管理者ログイン後に表示します。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="login-overlay" id="loginOverlay">
+    <form class="login-card" id="loginForm">
+      <h2>管理者ログイン</h2>
+      <p>語り場ニュースの管理者アカウントでログインしてください。閲覧データは管理者のみ取得できます。</p>
+
+      <div class="field">
+        <label for="email">メールアドレス</label>
+        <input id="email" name="email" type="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">パスワード</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+
+      <div class="login-actions">
+        <button class="btn btn--main" id="loginBtn" type="submit">ログインして表示</button>
+      </div>
+      <div class="login-msg" id="loginMsg"></div>
+      <div class="note">※ ログイン情報はこの画面を閉じるまでのセッション内だけに保持します。</div>
+    </form>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzyL-rkQTcM_GijeBRHFZT3vfsv58xkQIZFAI6PPPC8IFQ50OB62DJrriiWjOLMyZAE/exec";
+  const TOKEN_KEY = "katariba_post_stats_admin_token";
+  const REFRESH_MS = 10000;
+
+  let posts = [];
+  let timer = null;
+  let isRefreshing = false;
+  let sortState = { key: "totalViews", direction: "desc" };
+
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+  function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY) || "";
+  }
+
+  function saveToken(token) {
+    sessionStorage.setItem(TOKEN_KEY, String(token || ""));
+  }
+
+  function clearToken() {
+    sessionStorage.removeItem(TOKEN_KEY);
+  }
+
+  async function parseJsonResponse(res) {
+    const text = await res.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (_) {
+      throw new Error("APIの応答を読み取れませんでした。");
+    }
+    if (!data.ok) {
+      const err = new Error(data.message || "APIエラー");
+      err.code = data.code || "";
+      throw err;
+    }
+    return data;
+  }
+
+  async function login(email, password) {
+    const res = await fetch(GAS_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "login",
+        email,
+        password
+      })
+    });
+    return parseJsonResponse(res);
+  }
+
+  async function fetchAllPosts() {
+    const token = getToken();
+    if (!token) throw Object.assign(new Error("ログインしてください。"), { code:"AUTH_REQUIRED" });
+
+    const params = new URLSearchParams({
+      action: "listAllPosts",
+      token,
+      t: String(Date.now())
+    });
+    const res = await fetch(`${GAS_API_URL}?${params.toString()}`, { cache:"no-store" });
+    return parseJsonResponse(res);
+  }
+
+  function safeNumber(value) {
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  }
+
+  function normalizePost(post) {
+    return {
+      date: String(post?.date || ""),
+      title: String(post?.title || ""),
+      totalViews: safeNumber(post?.totalViews),
+      uniqueViewCount: safeNumber(post?.uniqueViewCount)
+    };
+  }
+
+  function compareValues(a, b, key) {
+    if (key === "totalViews" || key === "uniqueViewCount") {
+      return a[key] - b[key];
+    }
+    if (key === "date") {
+      const at = Date.parse(a.date);
+      const bt = Date.parse(b.date);
+      if (Number.isFinite(at) && Number.isFinite(bt)) return at - bt;
+      return a.date.localeCompare(b.date, "ja");
+    }
+    return a.title.localeCompare(b.title, "ja", { numeric:true, sensitivity:"base" });
+  }
+
+  function sortedPosts() {
+    const multiplier = sortState.direction === "asc" ? 1 : -1;
+    return posts.slice().sort((a, b) => {
+      const primary = compareValues(a, b, sortState.key);
+      if (primary !== 0) return primary * multiplier;
+
+      const dateTie = compareValues(a, b, "date");
+      if (dateTie !== 0) return dateTie * -1;
+
+      return a.title.localeCompare(b.title, "ja");
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function formatNumber(value) {
+    return new Intl.NumberFormat("ja-JP").format(safeNumber(value));
+  }
+
+  function formatDate(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "—";
+    const m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return `${m[1]}/${String(m[2]).padStart(2,"0")}/${String(m[3]).padStart(2,"0")}`;
+    return raw;
+  }
+
+  function render() {
+    const body = $("#statsBody");
+    const rows = sortedPosts();
+
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="4" class="empty">表示できる記事データがありません。</td></tr>';
+    } else {
+      body.innerHTML = rows.map(row => `
+        <tr>
+          <td class="date">${escapeHtml(formatDate(row.date))}</td>
+          <td class="title">${escapeHtml(row.title || "（タイトルなし）")}</td>
+          <td class="num">${formatNumber(row.totalViews)}</td>
+          <td class="num">${formatNumber(row.uniqueViewCount)}</td>
+        </tr>
+      `).join("");
+    }
+
+    $("#articleCount").textContent = formatNumber(rows.length);
+    $("#totalViewsSum").textContent = formatNumber(
+      rows.reduce((sum, row) => sum + safeNumber(row.totalViews), 0)
+    );
+
+    const labels = {
+      date: "投稿日",
+      title: "記事タイトル",
+      totalViews: "総視聴数",
+      uniqueViewCount: "視聴人数"
+    };
+    $("#sortLabel").textContent =
+      `${labels[sortState.key]} ${sortState.direction === "asc" ? "▲" : "▼"}`;
+
+    $$("th[data-key]").forEach(th => {
+      const active = th.dataset.key === sortState.key;
+      th.classList.toggle("is-active", active);
+      const mark = th.querySelector(".sort");
+      if (mark) mark.textContent = active ? (sortState.direction === "asc" ? "▲" : "▼") : "↕";
+    });
+  }
+
+  function setUpdatedNow() {
+    const now = new Date();
+    $("#updatedAt").textContent =
+      "最終更新：" + now.toLocaleTimeString("ja-JP", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
+  }
+
+  function showLogin(message = "") {
+    stopTimer();
+    $("#loginOverlay").hidden = false;
+    $("#loginMsg").textContent = message;
+  }
+
+  function hideLogin() {
+    $("#loginOverlay").hidden = true;
+    $("#loginMsg").textContent = "";
+  }
+
+  function startTimer() {
+    stopTimer();
+    timer = setInterval(() => refreshData(true), REFRESH_MS);
+  }
+
+  function stopTimer() {
+    if (timer) clearInterval(timer);
+    timer = null;
+  }
+
+  async function refreshData(silent = false) {
+    if (isRefreshing) return;
+    isRefreshing = true;
+    const btn = $("#refreshBtn");
+    const oldText = btn.textContent;
+
+    try {
+      if (!silent) {
+        btn.disabled = true;
+        btn.textContent = "更新中...";
+      }
+      const data = await fetchAllPosts();
+      posts = Array.isArray(data.posts) ? data.posts.map(normalizePost) : [];
+      render();
+      setUpdatedNow();
+      hideLogin();
+    } catch (err) {
+      console.error(err);
+      if (err.code === "AUTH_REQUIRED" || err.code === "FORBIDDEN") {
+        clearToken();
+        showLogin(
+          err.code === "FORBIDDEN"
+            ? "管理者権限のアカウントでログインしてください。"
+            : "セッションの有効期限が切れました。再ログインしてください。"
+        );
+      } else if (!silent) {
+        alert(err.message || "データ取得に失敗しました。");
+      }
+    } finally {
+      isRefreshing = false;
+      if (!silent) {
+        btn.disabled = false;
+        btn.textContent = oldText;
+      }
+    }
+  }
+
+  $("#loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("#email").value.trim();
+    const password = $("#password").value;
+    const btn = $("#loginBtn");
+    const oldText = btn.textContent;
+
+    $("#loginMsg").textContent = "";
+    btn.disabled = true;
+    btn.textContent = "確認中...";
+
+    try {
+      const data = await login(email, password);
+      if (String(data.user?.role || "").toLowerCase() !== "admin") {
+        throw Object.assign(new Error("管理者権限のアカウントでログインしてください。"), { code:"FORBIDDEN" });
+      }
+      saveToken(data.token || "");
+      $("#password").value = "";
+      hideLogin();
+      await refreshData();
+      startTimer();
+    } catch (err) {
+      clearToken();
+      $("#loginMsg").textContent = err.message || "ログインに失敗しました。";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
+  });
+
+  $("#refreshBtn").addEventListener("click", () => refreshData(false));
+
+  $("#logoutBtn").addEventListener("click", () => {
+    clearToken();
+    posts = [];
+    render();
+    showLogin();
+  });
+
+  $$("th[data-key] button").forEach(button => {
+    button.addEventListener("click", () => {
+      const th = button.closest("th[data-key]");
+      const key = th.dataset.key;
+      if (sortState.key === key) {
+        sortState.direction = sortState.direction === "asc" ? "desc" : "asc";
+      } else {
+        sortState.key = key;
+        sortState.direction = (key === "title") ? "asc" : "desc";
+      }
+      render();
+    });
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopTimer();
+    else if (getToken()) {
+      refreshData(true);
+      startTimer();
+    }
+  });
+
+  if (getToken()) {
+    refreshData(true).then(() => {
+      if (getToken()) startTimer();
+    });
+  } else {
+    showLogin();
+  }
+})();
+</script>
+</body>
+</html>
